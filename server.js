@@ -7,13 +7,23 @@ var data       = {};
 
 var suffix     = process.env.INSP_SUFFIX || ".example.com"
 
+// Generate configs
 app.get('/conf/:id', function (req, res) {
     var id = req.params.id;
+    // Make sure there is a dataset for this node.
     if (!data[id]) {
         data[id] = {};
         data[id].id = id;
+        // Maybe our discovery is hidden behind a reverse proxy
         data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         data[id].password = generatePassword(64, false);
+        // Notify all nodes to rehash confgs to make the node known in the existing cluster.
+        for(var key in data) {
+                rehash(data[key]);
+        }
+    // maybe the nodes ip changed. Make sure we update it.
+    } else if ((data[id].ip !== req.headers['x-forwarded-for']) && (data[id].ip !== req.connection.remoteAddress)) {
+        data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         for(var key in data) {
                 rehash(data[key]);
         }
@@ -26,7 +36,7 @@ app.get('/conf/:id', function (req, res) {
         if (remote.id != id) {
              confresponse += '<link name="' + remote.id + suffix + '" ' +
                  'ipaddr="'+ remote.id +'" ' +
-                 'port="7000" ' +
+                 'port="7001" ' +
                  'allowmask="' + remote.ip + '/24" ' +
                  'timeout="300" ' +
                  'ssl="gnutls" ' +
@@ -45,12 +55,14 @@ app.get('/conf/:id', function (req, res) {
     res.send(confresponse);
 });
 
-app.listen(80, function () {
+
+
+app.listen(3000, function () {
       console.log('Example app listening on port 3000!')
 });
 
 function rehash(remote) {
-    request.get("http://" + remote.id + "/rehash", function () {
+    request.get("http://" + remote.id + ":8080/rehash", function () {
         console.log("Rehashing " + remote.id + suffix + "...");
     });
 }
