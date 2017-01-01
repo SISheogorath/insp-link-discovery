@@ -1,4 +1,5 @@
 var dns        = require('dns')
+var ip        = require('ip')
 var express    = require('express');
 var generatePassword = require('password-generator');
 var request    = require('request');
@@ -37,7 +38,7 @@ app.get('/conf/:id', function (req, res) {
              confresponse += '<link name="' + remote.id + suffix + '" ' +
                  'ipaddr="'+ remote.id +'" ' +
                  'port="7001" ' +
-                 'allowmask="' + remote.ip + '/24" ' +
+                 'allowmask="' + remote.ip + (ip.isV6Format(remote.ip) ? '/128" ' : '/32" ') +
                  'timeout="300" ' +
                  'ssl="gnutls" ' +
                  'statshidden="no" ' +
