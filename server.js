@@ -6,8 +6,12 @@ var generatePassword = require('password-generator');
 var request    = require('request');
 var app        = express();
 var data       = {};
+// Counter deletions since last global rehash
+var deletecounter = 0;
 
 var suffix     = process.env.INSP_SUFFIX || ".example.com"
+var leafsize   = process.env.INSP_CLUSTERSIZE || 3;
+
 
 // Generate configs
 app.get('/conf/:id', function (req, res) {
@@ -27,11 +31,10 @@ app.get('/conf/:id', function (req, res) {
         rehashAll();
     }
     var confresponse = "";
-    var remotes = [];
     // Generating config
     for(var key in data) {
         remote = data[key];
-        // create a link tag for every server excluding outself
+        // create a link tag for every server excluding ourself
         if (remote.id != id) {
              confresponse += '<link name="' + remote.id + suffix + '" ' +
                  'ipaddr="'+ remote.id +'" ' +
@@ -43,14 +46,11 @@ app.get('/conf/:id', function (req, res) {
                  'hidden="no" ' +
                  'sendpass="' + remote.password + '" ' +
                  'recvpass="' + data[id].password + '">\n';
-             // Add to remote server list
-             remotes.push(remote.id + suffix);
         }
     }
+
     // To let servers automatically join the cluster
-    // We use all server names to join the cluster as fast as possible and survive without a problem a dying node.
-    if (remotes.length > 0)
-        confresponse += '<autoconnect period="10" server="' +  remotes.join(" ")  + '">';
+    confresponse += buildAutoconnect(data[id].id);
 
     res.send(confresponse);
 });
@@ -60,16 +60,21 @@ timer.setInterval(function() {
     console.log("Running garbage collection");
     for(var key in data) {
         var collectGarbage = function (key) {
+            // if the node is not resolveable it's dead. We have to remove it from the cluster
             dns.lookup(data[key].id, function(err) {
                 if (err) {
+                    deletecounter++;
                     delete(data[key]);
                     console.log("Delete " + key + suffix);
+                    // If we delete as many nodes as the size of one leaf we may loose an whole uplink. In order to prevent that we rehash all nodes and buod a new cluster structure.
+                    if (deletecounter > leafsize - 1)
+                        rehashAll();
                 }
             });
         };
         collectGarbage(key);
     }
-}, 30000);
+}, 15 * 1000);
 
 app.listen(3000, function () {
       console.log('Example app listening on port 3000!')
@@ -82,7 +87,39 @@ function rehash(remote) {
 }
 
 function rehashAll() {
+    deletecounter = 0;
     for(var key in data) {
         rehash(data[key]);
     }
+}
+
+function buildAutoconnect(node) {
+    var returnvalue = "";
+    var hubs        = [];
+
+    // Get a array of all nodes
+    var dataset     = Object.keys(data);
+    // Find the current node
+    var nodeindex   = dataset.indexOf(node);
+    // Determine the beginning of the leaf
+    var leafindex   = nodeindex - (nodeindex % leafsize);
+    // Determine the beginning of next uplink leaf
+    var uplinkindex = leafindex / leafsize - ((leafindex / leafsize) % leafsize);
+
+    // If uplinks exists create a single entry for all nodes of the next uplink
+    // This way we only try to connect one at the same time.
+    if (uplinkindex !== 0) {
+        for(var i = uplinkindex; i < (uplinkindex + leafsize) && i < dataset.length; i++)
+            hubs.push(dataset[i] + suffix);
+        if (hubs.length > 0)
+            // Randomize order to minimize the chance of multiple servers starting handshake with the same uplink node
+            returnvalue += '<autoconnect period="10" server="' + hubs.sort(function(a, b){return 0.5 - Math.random()}).join(" ")  + '">';
+    }
+
+    // Create one autoconnect tag for every node on our leaf to make sure noone gets lost.
+    for (var i = leafindex; i < (leafindex + leafsize) && i < dataset.length; i++)
+        if (i !== nodeindex)
+            returnvalue += '<autoconnect period="30" server="' + dataset[i] + suffix  + '">';
+
+    return returnvalue;
 }
