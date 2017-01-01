@@ -1,5 +1,6 @@
-var dns        = require('dns')
-var ip        = require('ip')
+var dns        = require('dns');
+var ip         = require('ip');
+var timer      = require('timers');
 var express    = require('express');
 var generatePassword = require('password-generator');
 var request    = require('request');
@@ -19,21 +20,18 @@ app.get('/conf/:id', function (req, res) {
         data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         data[id].password = generatePassword(64, false);
         // Notify all nodes to rehash confgs to make the node known in the existing cluster.
-        for(var key in data) {
-                rehash(data[key]);
-        }
+        rehashAll();
     // maybe the nodes ip changed. Make sure we update it.
     } else if ((data[id].ip !== req.headers['x-forwarded-for']) && (data[id].ip !== req.connection.remoteAddress)) {
         data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-        for(var key in data) {
-                rehash(data[key]);
-        }
+        rehashAll();
     }
     var confresponse = "";
     var remotes = [];
+    // Generating config
     for(var key in data) {
         remote = data[key];
-//    data.forEach(function (remote) {
+        // create a link tag for every server excluding outself
         if (remote.id != id) {
              confresponse += '<link name="' + remote.id + suffix + '" ' +
                  'ipaddr="'+ remote.id +'" ' +
@@ -45,18 +43,33 @@ app.get('/conf/:id', function (req, res) {
                  'hidden="no" ' +
                  'sendpass="' + remote.password + '" ' +
                  'recvpass="' + data[id].password + '">\n';
+             // Add to remote server list
              remotes.push(remote.id + suffix);
         }
     }
-    //})
-    console.log(remotes.length)
+    // To let servers automatically join the cluster
+    // We use all server names to join the cluster as fast as possible and survive without a problem a dying node.
     if (remotes.length > 0)
         confresponse += '<autoconnect period="10" server="' +  remotes.join(" ")  + '">';
 
     res.send(confresponse);
 });
 
-
+// Garbage collection
+timer.setInterval(function() {
+    console.log("Running garbage collection");
+    for(var key in data) {
+        var collectGarbage = function (key) {
+            dns.lookup(data[key].id, function(err) {
+                if (err) {
+                    delete(data[key]);
+                    console.log("Delete " + key + suffix);
+                }
+            });
+        };
+        collectGarbage(key);
+    }
+}, 30000);
 
 app.listen(3000, function () {
       console.log('Example app listening on port 3000!')
@@ -68,3 +81,8 @@ function rehash(remote) {
     });
 }
 
+function rehashAll() {
+    for(var key in data) {
+        rehash(data[key]);
+    }
+}
