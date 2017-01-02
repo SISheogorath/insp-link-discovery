@@ -113,13 +113,13 @@ function buildAutoconnect(node) {
             hubs.push(dataset[i] + suffix);
         if (hubs.length > 0)
             // Randomize order to minimize the chance of multiple servers starting handshake with the same uplink node
-            returnvalue += '<autoconnect period="10" server="' + hubs.sort(function(a, b){return 0.5 - Math.random()}).join(" ")  + '">';
+            returnvalue += '<autoconnect period="' + ((Math.random() * (2 * leafsize) + 10 | 0)) + '" server="' + hubs.sort(function(a, b){return 0.5 - Math.random()}).join(" ")  + '">';
     }
 
     // Create one autoconnect tag for every node on our leaf to make sure noone gets lost.
     for (var i = leafindex; i < (leafindex + leafsize) && i < dataset.length; i++)
         if (i !== nodeindex)
-            returnvalue += '<autoconnect period="30" server="' + dataset[i] + suffix  + '">';
+            returnvalue += '<autoconnect period="' + ((Math.random() * (5 * leafsize) + 30) | 0) + '" server="' + dataset[i] + suffix  + '">';
 
     return returnvalue;
 }
