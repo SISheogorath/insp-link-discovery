@@ -14,8 +14,9 @@ var leafsize   = process.env.INSP_CLUSTERSIZE || 3;
 
 
 // Generate configs
-app.get('/conf/:id', function (req, res) {
+app.get('/conf/:id/:fingerprint?', function (req, res) {
     var id = req.params.id;
+    var fingerprint = req.params.fingerprint || null;
     // Make sure there is a dataset for this node.
     if (!data[id]) {
         data[id] = {};
@@ -23,11 +24,16 @@ app.get('/conf/:id', function (req, res) {
         // Maybe our discovery is hidden behind a reverse proxy
         data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         data[id].password = generatePassword(64, false);
+        if (fingerprint)
+            data[id].fingerprint = fingerprint;
         // Notify all nodes to rehash confgs to make the node known in the existing cluster.
         rehashAll();
     // maybe the nodes ip changed. Make sure we update it.
     } else if ((data[id].ip !== req.headers['x-forwarded-for']) && (data[id].ip !== req.connection.remoteAddress)) {
         data[id].ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        rehashAll();
+    } else if (data[id].fingerprint && fingerprint && data[id].fingerprint !== fingerprint) {
+        data[id].fingerprint = fingerprint;
         rehashAll();
     }
     var confresponse = "";
@@ -43,6 +49,7 @@ app.get('/conf/:id', function (req, res) {
                  'timeout="300" ' +
                  'ssl="gnutls" ' +
                  'statshidden="no" ' +
+                 (remote.fingerprint ? ('fingerprint="' + remote.fingerprint + '" ') : '') +
                  'hidden="no" ' +
                  'sendpass="' + remote.password + '" ' +
                  'recvpass="' + data[id].password + '">\n';
