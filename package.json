@@ -11,6 +11,7 @@
   "dependencies": {
     "express": "^4.14.0",
     "ip": "^1.1.4",
+    "is-docker": "^1.1.0",
     "password-generator": "^2.1.0",
     "request": "^2.79.0"
   }

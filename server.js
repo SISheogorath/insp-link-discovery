@@ -4,6 +4,7 @@ var timer      = require('timers');
 var express    = require('express');
 var generatePassword = require('password-generator');
 var request    = require('request');
+var isDocker   = require('is-docker');
 var app        = express();
 var data       = {};
 // Counter deletions since last global rehash
@@ -11,7 +12,7 @@ var deletecounter = 0;
 
 var suffix     = process.env.INSP_SUFFIX || ".example.com"
 var leafsize   = process.env.INSP_CLUSTERSIZE || 3;
-
+var servicename = process.env.INSP_SERVICENAME || null;
 
 // Generate configs
 app.get('/conf/:id/:fingerprint?', function (req, res) {
@@ -86,6 +87,18 @@ timer.setInterval(function() {
 app.listen(3000, function () {
       console.log('Example app listening on port 3000!')
 });
+
+// Solve the bootstrap problem
+if (servicename && isDocker())
+    dns.lookup("tasks." + servicename, {all: true}, function (err, addresses) {
+        if (err)
+            return;
+
+        addresses.forEach(function(result) {
+            var remote = {id: result.address};
+            rehash(remote);
+        })
+    });
 
 function rehash(remote) {
     request.get("http://" + remote.id + ":8080/rehash", function () {
