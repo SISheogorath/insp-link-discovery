@@ -35,9 +35,11 @@ echo Created discovery service
 # Clone modify and build inspircd docker image to work with discovery
 git clone https://github.com/Adam-/inspircd-docker.git inspircd-docker
 cd inspircd-docker
-wget https://gist.github.com/SISheogorath/abf315c200fbdf3733b9fb31320b10eb/raw/5bd1dd6bc962b62491bb89c6f0893451d2fcbb67/0001-Changes-for-usage-of-insp-conf-discovery.patch
+wget https://raw.githubusercontent.com/SISheogorath/insp-link-discovery/master/0001-Changes-for-usage-of-insp-conf-discovery.patch
 echo >> 0001-Changes-for-usage-of-insp-conf-discovery.patch
 git am 0001-Changes-for-usage-of-insp-conf-discovery.patch
+sed -i 's/perl-lwp-protocol-https wget gnutls-dev/perl-lwp-protocol-https gnutls-dev/' Dockerfile
+wget -O modules/m_httpd_rehash.cpp https://gist.githubusercontent.com/SISheogorath/c3e2a6cd08ffd51897a7dcea422f1a43/raw/594d58c3c0431e5a74cacbdff6710b2cb7987e6a/m_httpd_rehash.cpp
 docker build -t inspircd:latest .
 
 # Setup inspircd service
