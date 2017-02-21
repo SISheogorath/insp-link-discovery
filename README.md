@@ -54,9 +54,10 @@ After building the image we create the service and scale it up to 3 instances wh
 ```console
 git clone https://github.com/Adam-/inspircd-docker.git inspircd-docker
 cd inspircd-docker
-wget https://gist.github.com/SISheogorath/abf315c200fbdf3733b9fb31320b10eb/raw/d8a1879b91f874f9262a1f6462d43154c1b6b3bb/0001-Changes-for-usage-of-insp-conf-discovery.patch
+wget https://raw.githubusercontent.com/SISheogorath/insp-link-discovery/master/0001-Changes-for-usage-of-insp-conf-discovery.patch
 echo >> 0001-Changes-for-usage-of-insp-conf-discovery.patch
 git am 0001-Changes-for-usage-of-insp-conf-discovery.patch
+sed -i 's/perl-lwp-protocol-https wget gnutls-dev/perl-lwp-protocol-https gnutls-dev/' Dockerfile 
 docker build -t inspircd:latest .
 
 docker service create \
