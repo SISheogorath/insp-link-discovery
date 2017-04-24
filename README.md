@@ -1,6 +1,8 @@
 InspIRCd Link Discovery
 ===
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/SISheogorath/insp-link-discovery.svg)](https://greenkeeper.io/)
+
 This is a little NodeJS project to allow inspircd to scale dynamically in docker swarm setups with overlay networks.
 
 Your servers need to load [m_httpd_rehash](https://gist.github.com/SISheogorath/c3e2a6cd08ffd51897a7dcea422f1a43) and listen on port 80.
